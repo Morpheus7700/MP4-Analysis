@@ -1,0 +1,16 @@
+streamlit
+moviepy
+opencv-python
+SpeechRecognition
+pydub
+numpy
+pandas
+pillow
+ultralytics
+transformers
+mediapipe
+# Deep Learning Upgrades
+openai-whisper
+torch
+accelerate
+sentencepiece

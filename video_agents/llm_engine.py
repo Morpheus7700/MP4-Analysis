@@ -70,25 +70,32 @@ class LLMEngine:
         return full_text.strip()
 
     def _construct_prompt(self, audio, visual, meta):
-        # Concise Visual Summary
-        vis = f"SCENE: {visual.get('captions', ['N/A'])[0]}\nOBJECTS: {', '.join(visual['stats'].get('unique_objects', []))}\nEMOTIONS: {visual['stats'].get('total_emotions', {})}"
+        # Detailed Visual Context
+        captions = "\n".join([f"- {c}" for c in visual.get('captions', [])])
+        vis_stats = f"OBJECTS: {', '.join(visual['stats'].get('unique_objects', []))}\nEMOTIONS: {visual['stats'].get('total_emotions', {})}"
         
         # Audio Context
         transcript = audio.get('transcript', '').strip()
         lang = audio.get('detected_language', 'unknown')
         speech = f"TRANSCRIPT ({lang}): {transcript}" if transcript and "No clear speech" not in transcript else "SPEECH: None detected."
 
-        return f"""Task: Summarize this video data into a professional report.
+        return f"""[TASK] Act as an Intelligence Analyst. Synthesize the following video/audio data into a DETAILED briefing.
 
-[DATA]
-{vis}
+[VISUAL EVIDENCE]
+{captions}
+{vis_stats}
+
+[AUDIO EVIDENCE]
 {speech}
 
-[FORMAT]
-1. Title
-2. Summary: (3 sentences max)
-3. Speech Insights: (Translation/Summary of dialogue)
-4. Context: (Likely intent)
+[REPORT STRUCTURE]
+1. TITLE: Professional title.
+2. DETAILED SUMMARY: A 2-paragraph narrative describing the scene, the people involved (mentioning gender and number), and their primary actions.
+3. BEHAVIORAL ANALYSIS: Analyze the emotional state (Emotions: {visual['stats'].get('total_emotions', {})}) and how it relates to the setting/speech.
+4. SPEECH INSIGHTS: Translate/Summarize any dialogue. If none, state "Silent observation."
+5. CONCLUSION: Likely context or intent of the video.
+
+[CONSTRAINT] Provide a thorough analysis. Do not be brief. Correlate visual and audio data.
 
 Report:
 """

@@ -118,9 +118,17 @@ class VisualAgent:
             timeline.append(frame_data)
 
         # Generate Deep Insights
-        
+        person_count = object_counts.get('person', 0)
+        gender_mentions = Counter()
+        for c in captions_log:
+            if 'man' in c.lower(): gender_mentions['man'] += 1
+            if 'woman' in c.lower(): gender_mentions['woman'] += 1
+            if 'child' in c.lower() or 'boy' in c.lower() or 'girl' in c.lower(): gender_mentions['child'] += 1
+
         # 1. Narrative Summary
-        insights.append(f"Scene Summary: {captions_log[0].split(': ')[1] if captions_log else 'Analysis unavailable'}.")
+        scene_base = captions_log[0].split(': ')[1] if captions_log else 'Analysis unavailable'
+        gender_summary = ", ".join([f"{k}s" for k in gender_mentions.keys()])
+        insights.append(f"Visual Context: {scene_base}. Subjects detected: {gender_summary if gender_summary else 'People'}.")
         
         # 2. Emotions
         if emotions_detected:

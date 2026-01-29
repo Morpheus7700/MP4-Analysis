@@ -1,30 +1,19 @@
 import torch
-from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
+from transformers import pipeline
 import os
 
 class LLMEngine:
-    """
-    A Deep Learning inference engine that uses local LLMs (like Gemma-2-2b)
-    to perform reasoning and synthesis across video analysis outputs.
-    """
     def __init__(self, model_id="google/gemma-2-2b-it"):
         self.model_id = model_id
-        self.tokenizer = None
-        self.model = None
         self.pipeline = None
-        
-        # Determine device
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"LLM Engine: Initializing on {self.device}...")
 
     def _load_model(self):
         if self.pipeline is None:
-            # We use a 2B model which fits in ~5-6GB RAM/VRAM
-            # In a real environment, we'd use bitsandbytes for quantization, 
-            # but for standard CPU/GPU compat, we'll use half-precision or auto.
             torch_dtype = torch.float16 if self.device == "cuda" else torch.float32
-            
             try:
+                # Try primary model
                 self.pipeline = pipeline(
                     "text-generation",
                     model=self.model_id,
@@ -32,70 +21,63 @@ class LLMEngine:
                     torch_dtype=torch_dtype,
                 )
             except Exception as e:
-                print(f"Error loading LLM: {e}. Falling back to a lighter model (distilgpt2).")
-                self.pipeline = pipeline("text-generation", model="distilgpt2", device_map="auto")
+                # Fallback to Phi-1.5 (much better than GPT-2 at following instructions)
+                print(f"Primary model failed. Loading reliable fallback (Phi-1.5)...")
+                self.pipeline = pipeline("text-generation", model="microsoft/phi-1_5", device_map="auto")
 
     def generate_report(self, audio_data, visual_data, meta):
-        """
-        Synthesizes raw JSON data into a professional intelligence report.
-        """
         self._load_model()
-        
-        # Prepare the context
         prompt = self._construct_prompt(audio_data, visual_data, meta)
         
-        # Manual template that works with Gemma, GPT-2, and others
-        prompt_formatted = f"<start_of_turn>user\n{prompt}<end_of_turn>\n<start_of_turn>model\n"
-        
-        # Fallback for models that don't recognize Gemma tokens (like GPT-2)
-        if "gpt2" in self.pipeline.model.name_or_path.lower():
-            prompt_formatted = f"User: {prompt}\n\nAssistant: Here is the intelligence report:\n"
-
+        # Significantly richer parameters for detailed output
         outputs = self.pipeline(
-            prompt_formatted,
-            max_new_tokens=400,
-            do_sample=True,
+            prompt,
+            max_new_tokens=600, # Increased for detailed summary
+            do_sample=True, 
             temperature=0.7,
-            top_k=50,
             top_p=0.9,
-            repetition_penalty=1.2,
-            truncation=True,
+            repetition_penalty=1.1,
             pad_token_id=self.pipeline.tokenizer.eos_token_id
         )
         
         full_text = outputs[0]["generated_text"]
-        # Extract only the newly generated part
-        if prompt_formatted in full_text:
-            return full_text[full_text.find(prompt_formatted) + len(prompt_formatted):].strip()
-        return full_text.strip()
+        # Extract only the content after "OFFICIAL INTELLIGENCE REPORT"
+        marker = "OFFICIAL INTELLIGENCE REPORT"
+        if marker in full_text:
+            return full_text.split(marker)[-1].strip()
+        return full_text[len(prompt):].strip()
 
     def _construct_prompt(self, audio, visual, meta):
-        # Detailed Visual Context
-        captions = "\n".join([f"- {c}" for c in visual.get('captions', [])])
-        vis_stats = f"OBJECTS: {', '.join(visual['stats'].get('unique_objects', []))}\nEMOTIONS: {visual['stats'].get('total_emotions', {})}"
+        # Explicit grounding data
+        visual_narrative = visual['stats'].get('visual_narrative', 'No visual description available.')
+        objs = ', '.join(visual['stats'].get('unique_objects', []))
+        emos = ', '.join([f"{k} ({v})" for k, v in visual['stats'].get('total_emotions', {}).items()])
+        gestures = ', '.join([f"{k} ({v})" for k, v in visual['stats'].get('total_gestures', {}).items()])
         
-        # Audio Context
         transcript = audio.get('transcript', '').strip()
-        lang = audio.get('detected_language', 'unknown')
-        speech = f"TRANSCRIPT ({lang}): {transcript}" if transcript and "No clear speech" not in transcript else "SPEECH: None detected."
+        if not transcript or "No clear speech" in transcript or "No audio file" in transcript:
+            speech = "[No verbal communication detected]"
+        else:
+            speech = f"\"{transcript}\""
 
-        return f"""[TASK] Act as an Intelligence Analyst. Synthesize the following video/audio data into a DETAILED briefing.
+        # Professional Analyst Prompt
+        return f"""<SYSTEM_INSTRUCTION>
+You are a Senior Intelligence Analyst. Synthesize the provided multi-modal data into a HIGHLY STRUCTURED, CHRONOLOGICAL Intelligence Briefing.
+- Use a professional, objective tone.
+- Elaborate on the RELATIONSHIP between what is seen and what is heard.
+- Describe the FLOW of events using temporal markers.
+- If data seems contradictory, note the discrepancy neutrally.
+- DO NOT use bullet points in the "Briefing Narrative" section; use flowing paragraphs.
+</SYSTEM_INSTRUCTION>
 
-[VISUAL EVIDENCE]
-{captions}
-{vis_stats}
+RAW DATA FEED:
+[METADATA] Duration: {meta.get('duration', 0):.1f}s | FPS: {meta.get('fps', 0)}
+[VISUAL CHRONOLOGY] {visual_narrative}
+[OBSERVED ENTITIES] {objs}
+[EMOTIONAL STATE] {emos}
+[GESTURES & INTERACTIONS] {gestures}
+[AUDIO TRANSCRIPTION] {speech}
 
-[AUDIO EVIDENCE]
-{speech}
-
-[REPORT STRUCTURE]
-1. TITLE: Professional title.
-2. DETAILED SUMMARY: A 2-paragraph narrative describing the scene, the people involved (mentioning gender and number), and their primary actions.
-3. BEHAVIORAL ANALYSIS: Analyze the emotional state (Emotions: {visual['stats'].get('total_emotions', {})}) and how it relates to the setting/speech.
-4. SPEECH INSIGHTS: Translate/Summarize any dialogue. If none, state "Silent observation."
-5. CONCLUSION: Likely context or intent of the video.
-
-[CONSTRAINT] Provide a thorough analysis. Do not be brief. Correlate visual and audio data.
-
-Report:
+OFFICIAL INTELLIGENCE REPORT:
+BRIEFING NARRATIVE:
 """

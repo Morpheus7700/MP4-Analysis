@@ -8,6 +8,7 @@ class AudioAgent:
         Deep Learning Audio Agent using OpenAI Whisper.
         """
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model_size = model_size
         print(f"Audio Agent: Loading Whisper '{model_size}' on {self.device}...")
         self.model = whisper.load_model(model_size, device=self.device)
 
@@ -16,8 +17,8 @@ class AudioAgent:
         Transcribes audio using a local Deep Learning model.
         Supports 99 languages including Bengali, Hindi, Spanish, French, German, etc.
         """
-        if not os.path.exists(audio_path):
-            return {"status": "error", "message": "Audio file not found."}
+        if not audio_path or not os.path.exists(audio_path):
+            return {"status": "no_audio", "transcript": "No audio file available for analysis.", "insights": ["Audio analysis skipped: No audio track found."]}
 
         try:
             # Whisper can hallucinate on silence. We use specific thresholds.
@@ -33,8 +34,8 @@ class AudioAgent:
             transcript = result["text"].strip()
             
             # Filter common Whisper hallucinations on silent/noisy audio
-            hallucinations = ["thank you", "thanks for watching", "subtitle", "identify the speaker", "please subscribe"]
-            if any(h in transcript.lower() for h in hallucinations) and len(transcript.split()) < 5:
+            hallucinations = ["thank you", "thanks for watching", "subtitle", "identify the speaker", "please subscribe", "watching"]
+            if any(h in transcript.lower() for h in hallucinations) and len(transcript.split()) < 4:
                 transcript = ""
 
             detected_lang = result.get("language", "unknown")
@@ -48,10 +49,13 @@ class AudioAgent:
                 "insights": self._generate_insights(transcript, detected_lang)
             }
         except Exception as e:
+            print(f"Audio Agent Error: {e}")
             return {
                 "agent": "AudioAgent",
                 "status": "error",
-                "message": str(e)
+                "transcript": "Audio analysis failed due to a processing error.",
+                "message": str(e),
+                "insights": ["Audio module encountered an internal error."]
             }
 
     def _generate_insights(self, text, lang):

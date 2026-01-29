@@ -1,0 +1,84 @@
+/* Professional Video AI Theme */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+:root {
+    --primary: #00A3FF;
+    --background: #0B0E14;
+    --card-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --text: #E0E6ED;
+}
+
+.stApp {
+    background: radial-gradient(circle at top right, #1a2a44, #0b0e14 70%) !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* Glassmorphism Containers */
+section[data-testid="stVerticalBlock"] > div {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    transition: all 0.3s ease;
+}
+
+section[data-testid="stVerticalBlock"] > div:hover {
+    border-color: var(--primary);
+    box-shadow: 0 8px 32px rgba(0, 163, 255, 0.1);
+}
+
+/* Sidebar Styling */
+section[data-testid="stSidebar"] {
+    background-color: rgba(11, 14, 20, 0.95) !important;
+    border-right: 1px solid var(--glass-border);
+}
+
+/* Typography */
+h1, h2, h3 {
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+    color: white !important;
+}
+
+.stMarkdown p {
+    color: var(--text) !important;
+    line-height: 1.6;
+}
+
+/* Button & Widget Polish */
+.stButton > button {
+    background: linear-gradient(90deg, #00A3FF 0%, #0066FF 100%) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: white !important;
+    font-weight: 600 !important;
+    width: 100%;
+    padding: 0.75rem !important;
+    transition: transform 0.2s ease !important;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 163, 255, 0.4);
+}
+
+/* Status Indicators */
+.stSuccess {
+    background: rgba(40, 167, 69, 0.1) !important;
+    border: 1px solid #28a745 !important;
+}
+
+.stInfo {
+    background: rgba(0, 163, 255, 0.1) !important;
+    border: 1px solid #00a3ff !important;
+}
+
+/* Upload Area */
+section[data-testid="stFileUploader"] {
+    background: rgba(255, 255, 255, 0.02);
+    border: 2px dashed var(--glass-border);
+    border-radius: 16px;
+}

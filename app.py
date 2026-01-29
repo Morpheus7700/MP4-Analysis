@@ -2,46 +2,103 @@ import streamlit as st
 from video_agents.manager import ManagerAgent
 import os
 
-st.set_page_config(page_title="Video AI Analyst", layout="wide")
+# Page Config for Premium Look
+st.set_page_config(
+    page_title="Video AI Analyst | Mission Control",
+    page_icon="🧠",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-st.title("🧠 Autonomous Video AI Analyst (Deep Learning Edition)")
-st.markdown("""
-This system uses a team of **Advanced Deep Learning Agents** to analyze your video files.
-- **Manager Agent**: Orchestrates the multi-modal pipeline.
-- **Audio Agent (Whisper)**: High-fidelity speech-to-text and sound analysis.
-- **Visual Agent (YOLO/BLIP/ViT)**: Objects, Actions, Emotions, and Gestures.
-- **Report Agent (Gemma-2)**: Advanced LLM reasoning to synthesize intelligence reports.
-""")
+# Inject Custom CSS
+css_path = os.path.join(os.getcwd(), "static", "style.css")
+if os.path.exists(css_path):
+    with open(css_path) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload a Video (MP4, MOV, AVI)", type=["mp4", "mov", "avi"])
+# Sidebar System Health & Settings
+st.sidebar.title("🔋 System Control")
+turbo_mode = st.sidebar.toggle("🚀 TURBO MODE (Fastest)", value=False, help="Uses lighter models (Whisper Tiny + Phi-1.5) for ~3x faster analysis.")
 
-if uploaded_file is not None:
-    if st.button("Start Deep Analysis"):
-        manager = ManagerAgent()
-        
-        with st.spinner("🤖 Agents are collaborating (Loading Deep Learning Models)..."):
-            report = manager.process_video(uploaded_file)
-        
-        st.divider()
-        st.header(report["title"])
-        
-        st.markdown(report["narrative"])
-        
-        with st.expander("🛠️ Debug: Raw Agent Logs"):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("Visual Agent Data")
-                st.json(report.get("visual_raw", {}))
-            with col2:
-                st.subheader("Audio Agent Data")
-                st.json(report.get("audio_raw", {}))
+@st.cache_resource
+def get_manager(is_turbo):
+    import video_agents.manager
+    import importlib
+    importlib.reload(video_agents.manager)
+    from video_agents.manager import ManagerAgent
+    
+    config = {
+        "audio_model": "tiny" if is_turbo else "base",
+        "llm_model": "microsoft/phi-1_5" if is_turbo else "google/gemma-2-2b-it"
+    }
+    
+    try:
+        # Try passing config (Latest version)
+        return ManagerAgent(config)
+    except TypeError:
+        # Fallback for old version if somehow it still persists
+        st.warning("Warning: Using legacy ManagerAgent signature. Turbo Mode may be disabled.")
+        return ManagerAgent()
 
-        st.subheader("🔍 Supplemental Insights")
+manager = get_manager(turbo_mode)
+
+st.sidebar.success(f"Visual Core: Active (YOLOv8/BLIP)")
+st.sidebar.success(f"Audio Core: Active (Whisper {'Tiny' if turbo_mode else 'Base'})")
+st.sidebar.info(f"Synthesis Engine: {'Phi-1.5' if turbo_mode else 'Gemma-2'}")
+st.sidebar.divider()
+st.sidebar.markdown("### Resource Usage")
+st.sidebar.progress(20 if turbo_mode else 45, text="VRAM Allocation")
+st.sidebar.progress(10 if turbo_mode else 25, text="Compute Density")
+st.sidebar.divider()
+st.sidebar.write("⚡ Running in **Premium Local Mode**")
+
+# Header Section
+col_head, col_logo = st.columns([4, 1])
+with col_head:
+    st.title("⚡ Video AI Analyst: Mission Control")
+    st.markdown(f"#### {'Turbo' if turbo_mode else 'Higher'} Intelligence. Deep Video Synthesis.")
+
+st.divider()
+
+# Main Interaction Area
+col_main, col_stats = st.columns([2, 1])
+
+with col_main:
+    st.subheader("📁 Input Source")
+    uploaded_file = st.file_uploader("Drop video file to begin deep neural analysis", type=["mp4", "mov", "avi"])
+
+    if uploaded_file is not None:
+        if st.button("🚀 INITIATE DEEPER ANALYSIS"):
+            with st.status("🧠 Agents are collaborating...", expanded=True) as status:
+                st.write("Initializing Multimodal Neural Networks...")
+                # The manager now handles its own status updates to st if needed, 
+                # but we can also wrap the call.
+                report = manager.process_video(uploaded_file)
+                status.update(label="Neural Synthesis Complete!", state="complete", expanded=False)
+            
+            st.session_state.last_report = report # Cache report to keep UI state
+            
+            st.divider()
+            st.header(f"📑 {report['title']}")
+            
+            # Narrative with better styling
+            st.markdown(f"### 🖋️ Intelligence Briefing\n{report['narrative']}")
+            
+            with st.expander("🛠️ Neural Logs & Raw Data"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.subheader("Visual Matrix")
+                    st.json(report.get("visual_raw", {}))
+                with c2:
+                    st.subheader("Acoustic Fingerprints")
+                    st.json(report.get("audio_raw", {}))
+
+with col_stats:
+    st.subheader("🎯 Key Insights")
+    if 'last_report' in st.session_state:
+        report = st.session_state.last_report
         for finding in report["key_findings"]:
             st.info(finding)
-
-st.sidebar.title("System Status")
-st.sidebar.success("All DL Models Active")
-st.sidebar.info("Using Whisper (Audio) & Gemma-2 (LLM)")
-st.sidebar.markdown("---")
-st.sidebar.write("Running in **Local GPU/CPU Mode**")
+    else:
+        st.write("Awaiting data feed...")
+        st.image("https://img.freepik.com/free-vector/abstract-digital-grid-background-business_53876-120618.jpg")

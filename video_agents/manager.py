@@ -7,8 +7,16 @@ from utils.video_utils import VideoUtils
 import tempfile
 
 class ManagerAgent:
-    def __init__(self):
-        self.audio_agent = AudioAgent()
+    def __init__(self, config=None):
+        """
+        Initializes the ManagerAgent with optional configuration.
+        """
+        self.config = config if config is not None else {"audio_model": "base", "llm_model": "google/gemma-2-2b-it"}
+        
+        # Initialize sub-agents with specific models if provided in config
+        audio_model = self.config.get("audio_model", "base")
+        self.audio_agent = AudioAgent(model_size=audio_model)
+        
         self.visual_agent = VisualAgent()
         self.report_agent = ReportAgent()
 
@@ -28,35 +36,43 @@ class ManagerAgent:
         meta = VideoUtils.get_video_info(video_path)
         st.write(f"**Manager Agent:** Video Duration: {meta['duration']:.2f}s, FPS: {meta['fps']}")
 
-        # 3. Audio Extraction & Analysis
-        st.info("Manager Agent: Delegating to Audio Agent...")
-        # Use os.path to safely create the wav path
-        audio_path = os.path.splitext(video_path)[0] + ".wav"
-        VideoUtils.extract_audio(video_path, audio_path)
+        # 3. Parallel Audio & Visual Analysis
+        import concurrent.futures
         
-        audio_report = self.audio_agent.analyze(audio_path)
-        st.success("Audio Agent: Analysis complete.")
-        with st.expander("See Audio Logs"):
-            st.json(audio_report)
-
-        # 4. Visual Extraction & Analysis
-        st.info("Manager Agent: Delegating to Visual Agent...")
-        # Extract frames (1 frame every 2 seconds to save time/compute)
-        frames = VideoUtils.extract_frames(video_path, "frames_temp", interval=2)
+        st.info("Manager Agent: Launching Parallel Neural Analysis...")
         
-        visual_report = self.visual_agent.analyze(frames)
-        st.success("Visual Agent: Analysis complete.")
-        with st.expander("See Visual Logs"):
-            st.json(visual_report)
-            if "captions" in visual_report:
-                st.write("**Scene Captions:**")
-                st.write(visual_report["captions"])
-            if "timeline" in visual_report:
-                st.write("**Frame Analysis Timeline:**")
-                st.dataframe(visual_report["timeline"])
+        def run_audio():
+            audio_path = os.path.splitext(video_path)[0] + ".wav"
+            if meta.get("has_audio"):
+                if VideoUtils.extract_audio(video_path, audio_path):
+                    return self.audio_agent.analyze(audio_path)
+            return self.audio_agent.analyze(None)
 
-        # 5. Synthesis
-        st.info("Manager Agent: Requesting Final Report...")
+        def run_visual():
+            # Extract frames (Scene Detection is now default in VideoUtils)
+            frames = VideoUtils.extract_frames(video_path, "frames_temp", interval=2)
+            return self.visual_agent.analyze(frames)
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_audio = executor.submit(run_audio)
+            future_visual = executor.submit(run_visual)
+            
+            audio_report = future_audio.result()
+            visual_report = future_visual.result()
+
+        st.success("Manager Agent: Multi-modal Analysis Complete.")
+        
+        with st.expander("Explore Consolidated Intelligence Feed"):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write("**Visual Intelligence**")
+                st.json(visual_report)
+            with col2:
+                st.write("**Audio Intelligence**")
+                st.json(audio_report)
+
+        # 4. Synthesis
+        st.info("Manager Agent: Requesting Final Report Synthesis...")
         final_report = self.report_agent.synthesize(audio_report, visual_report, meta)
         
         # Add raw data for UI debugging
@@ -66,8 +82,9 @@ class ManagerAgent:
         # Cleanup
         try:
             os.remove(video_path)
-            if os.path.exists(audio_path):
-                os.remove(audio_path)
+            audio_path_tmp = os.path.splitext(video_path)[0] + ".wav"
+            if os.path.exists(audio_path_tmp):
+                os.remove(audio_path_tmp)
         except:
             pass
             

@@ -11,8 +11,8 @@ transformers
 mediapipe
 imageio-ffmpeg
 openai-whisper
-# CPU-only version for Cloud deployment
---index-url https://download.pytorch.org/whl/cpu
+# Use extra-index-url so pip still searches PyPI for streamlit/etc.
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch
 torchvision
 torchaudio

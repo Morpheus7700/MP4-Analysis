@@ -3,15 +3,18 @@ moviepy
 opencv-python
 SpeechRecognition
 pydub
-numpy
+numpy<2.3.0
 pandas
-pillow
+pillow<12.0.0
 ultralytics
 transformers
 mediapipe
 imageio-ffmpeg
-# Deep Learning Upgrades
 openai-whisper
+# CPU-only version for Cloud deployment
+--index-url https://download.pytorch.org/whl/cpu
 torch
+torchvision
+torchaudio
 accelerate
 sentencepiece

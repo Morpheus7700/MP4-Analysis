@@ -1,6 +1,7 @@
 import torch
 from transformers import pipeline
 import os
+import streamlit as st
 
 class LLMEngine:
     def __init__(self, model_id="google/gemma-2-2b-it"):

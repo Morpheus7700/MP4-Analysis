@@ -13,26 +13,28 @@ class LLMEngine:
         if self.pipeline is None:
             torch_dtype = torch.float16 if self.device == "cuda" else torch.float32
             try:
-                # Try primary model
+                print(f"LLM Engine: Loading {self.model_id}...")
                 self.pipeline = pipeline(
                     "text-generation",
                     model=self.model_id,
                     device_map="auto",
                     torch_dtype=torch_dtype,
+                    trust_remote_code=True
                 )
             except Exception as e:
-                # Fallback to Phi-1.5 (much better than GPT-2 at following instructions)
-                print(f"Primary model failed. Loading reliable fallback (Phi-1.5)...")
-                self.pipeline = pipeline("text-generation", model="microsoft/phi-1_5", device_map="auto")
+                print(f"Primary model failed ({e}). Loading reliable fallback (Phi-1.5)...")
+                self.pipeline = pipeline("text-generation", model="microsoft/phi-1_5", device_map="auto", trust_remote_code=True)
 
     def generate_report(self, audio_data, visual_data, meta):
+        st.write("📖 LLM Engine: Reading analysis data...")
         self._load_model()
         prompt = self._construct_prompt(audio_data, visual_data, meta)
         
+        st.write("✍️ LLM Engine: Synthesizing Intelligence Briefing...")
         # Significantly richer parameters for detailed output
         outputs = self.pipeline(
             prompt,
-            max_new_tokens=600, # Increased for detailed summary
+            max_new_tokens=300, # Reduced for speed on CPU/low-VRAM
             do_sample=True, 
             temperature=0.7,
             top_p=0.9,

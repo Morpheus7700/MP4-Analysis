@@ -18,7 +18,7 @@ class ManagerAgent:
         self.audio_agent = AudioAgent(model_size=audio_model)
         
         self.visual_agent = VisualAgent()
-        self.report_agent = ReportAgent()
+        self.report_agent = ReportAgent(model_id=self.config.get("llm_model"))
 
     def _check_ffmpeg(self):
         import shutil

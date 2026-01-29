@@ -1,9 +1,9 @@
 from video_agents.llm_engine import LLMEngine
 
 class ReportAgent:
-    def __init__(self):
+    def __init__(self, model_id=None):
         # The Report Agent now delegates the 'thinking' to the LLM Engine
-        self.llm = LLMEngine()
+        self.llm = LLMEngine(model_id=model_id) if model_id else LLMEngine()
 
     def synthesize(self, audio_report, visual_report, video_meta):
         """

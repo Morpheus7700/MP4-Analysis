@@ -20,24 +20,25 @@ class LLMEngine:
                 
             torch_dtype = torch.float16 if self.device == "cuda" else torch.float32
             try:
-                print(f"LLM Engine: Loading {self.model_id}...")
-                # Avoid device_map="auto" on low-VRAM to prevent disk offloading (which hangs)
-                # Instead, use simple device placement if CUDA is available
+                print(f"LLM Engine: Loading {self.model_id} on {self.device}...")
+                # We use a very standard loading procedure to avoid 'meta' device bugs
+                # on systems with limited VRAM/Accelerate issues.
                 self.pipeline = pipeline(
                     "text-generation",
                     model=self.model_id,
                     device=0 if self.device == "cuda" else -1,
                     torch_dtype=torch_dtype,
-                    trust_remote_code=True
+                    trust_remote_code=True,
+                    model_kwargs={"low_cpu_mem_usage": False} # Force full load to avoid meta tensors
                 )
             except Exception as e:
-                print(f"Primary model failed ({e}). Loading reliable fallback (Phi-1.5)...")
-                # Force CPU for fallback if needed to ensure it actually runs
+                print(f"Primary model failed ({e}). Loading fallback (Phi-1.5)...")
                 self.pipeline = pipeline(
                     "text-generation", 
                     model="microsoft/phi-1_5", 
-                    device=-1 if self.device == "cpu" else 0,
-                    trust_remote_code=True
+                    device=0 if self.device == "cuda" else -1,
+                    trust_remote_code=True,
+                    model_kwargs={"low_cpu_mem_usage": False}
                 )
 
     def generate_report(self, audio_data, visual_data, meta):

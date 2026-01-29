@@ -7,8 +7,11 @@ import mediapipe as mp
 
 class VisualAgent:
     def __init__(self):
+        import torch
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         # 1. Object Detection (YOLOv8)
         self.yolo_model = YOLO('yolov8n.pt')
+        self.yolo_model.to(self.device)
         
         # 2. Image Captioning (BLIP) - Explains what is happening
         self.captioner = pipeline("image-to-text", model="Salesforce/blip-image-captioning-base")

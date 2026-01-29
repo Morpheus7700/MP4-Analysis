@@ -35,4 +35,4 @@ EXPOSE 8080
 
 # Run the application
 # We use the PORT environment variable provided by Cloud Run
-CMD ["sh", "-c", "streamlit run app.py --server.port=${PORT:-8080} --server.address=0.0.0.0"]
+CMD ["sh", "-c", "streamlit run app.py --server.port=${PORT:-8080} --server.address=0.0.0.0 --server.enableCORS=false --server.enableXsrfProtection=false"]

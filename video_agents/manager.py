@@ -20,43 +20,58 @@ class ManagerAgent:
         self.visual_agent = VisualAgent()
         self.report_agent = ReportAgent()
 
+    def _check_ffmpeg(self):
+        import shutil
+        return shutil.which("ffmpeg") is not None
+
     def process_video(self, video_file):
         """
         Orchestrates the entire video analysis process.
         """
-        st.info("Manager Agent: Received video. Starting processing pipeline...")
+        st.info("Manager Agent: Initializing Neural Pipeline...")
         
         # 1. Save to temp file
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
         tfile.write(video_file.read())
-        tfile.close() # CRITICAL: Close the file so other processes can access it on Windows
+        tfile.close() 
         video_path = tfile.name
         
         # 2. Extract Metadata
+        st.write("🔍 Analyzing Video Metadata...")
         meta = VideoUtils.get_video_info(video_path)
-        st.write(f"**Manager Agent:** Video Duration: {meta['duration']:.2f}s, FPS: {meta['fps']}")
+        st.write(f"📊 **Metadata:** {meta['duration']:.2f}s, {meta['fps']} FPS, Audio: {'Yes' if meta['has_audio'] else 'No'}")
 
         # 3. Parallel Audio & Visual Analysis
         import concurrent.futures
         
-        st.info("Manager Agent: Launching Parallel Neural Analysis...")
+        has_ffmpeg = self._check_ffmpeg()
+        if not has_ffmpeg:
+            st.warning("⚠️ FFmpeg not found. Audio analysis will be skipped. Please install ffmpeg for full intelligence.")
+
+        st.info("🚀 Launching Parallel Neural Agents...")
         
         def run_audio():
+            if not has_ffmpeg or not meta.get("has_audio"):
+                return self.audio_agent.analyze(None)
+                
             audio_path = os.path.splitext(video_path)[0] + ".wav"
-            if meta.get("has_audio"):
-                if VideoUtils.extract_audio(video_path, audio_path):
-                    return self.audio_agent.analyze(audio_path)
+            st.write("🎙️ Audio Agent: Extracting & Transcribing...")
+            if VideoUtils.extract_audio(video_path, audio_path):
+                return self.audio_agent.analyze(audio_path)
             return self.audio_agent.analyze(None)
 
         def run_visual():
-            # Extract frames (Scene Detection is now default in VideoUtils)
+            st.write("👁️ Visual Agent: Scanning frames (Batch Processing)...")
             frames = VideoUtils.extract_frames(video_path, "frames_temp", interval=2)
+            st.write(f"📸 Visual Agent: Processing {len(frames)} keyframes...")
             return self.visual_agent.analyze(frames)
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future_audio = executor.submit(run_audio)
             future_visual = executor.submit(run_visual)
             
+            # Use as_completed or similar if we wanted more granular feedback, 
+            # but wait for both for now.
             audio_report = future_audio.result()
             visual_report = future_visual.result()
 

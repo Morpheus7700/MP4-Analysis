@@ -49,6 +49,15 @@ class AudioAgent:
                 "insights": self._generate_insights(transcript, detected_lang)
             }
         except Exception as e:
+            error_msg = str(e)
+            if "WinError 2" in error_msg or "ffmpeg" in error_msg.lower():
+                print("Audio Agent: FFmpeg missing or inaccessible.")
+                return {
+                    "agent": "AudioAgent",
+                    "status": "error",
+                    "transcript": "Transcription skipped: FFmpeg utility is missing on this system.",
+                    "insights": ["Please install FFmpeg to enable audio analysis."]
+                }
             print(f"Audio Agent Error: {e}")
             return {
                 "agent": "AudioAgent",

@@ -14,10 +14,20 @@ class VisualAgent:
         self.yolo_model.to(self.device)
         
         # 2. Image Captioning (BLIP) - Explains what is happening
-        self.captioner = pipeline("image-to-text", model="Salesforce/blip-image-captioning-base")
+        self.captioner = pipeline(
+            "image-to-text", 
+            model="Salesforce/blip-image-captioning-base",
+            device=0 if self.device == "cuda" else -1,
+            model_kwargs={"low_cpu_mem_usage": False}
+        )
         
         # 3. Emotion Recognition (ViT) - Understands faces
-        self.emotion_classifier = pipeline("image-classification", model="dima806/facial_emotions_image_detection")
+        self.emotion_classifier = pipeline(
+            "image-classification", 
+            model="dima806/facial_emotions_image_detection",
+            device=0 if self.device == "cuda" else -1,
+            model_kwargs={"low_cpu_mem_usage": False}
+        )
         
         # 4. Hand Gesture Recognition (MediaPipe) - Legacy solutions might be missing on Python 3.13
         try:

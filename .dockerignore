@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.git/
+.gitignore
+.dockerignore
+venv/
+env/
+.env
+*.mp4
+*.wav
+*.avi
+*.mov
+test_output*.txt
+test_final_verification.txt
+.vscode/
+.idea/

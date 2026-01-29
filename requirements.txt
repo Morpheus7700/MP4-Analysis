@@ -9,6 +9,7 @@ pillow
 ultralytics
 transformers
 mediapipe
+imageio-ffmpeg
 # Deep Learning Upgrades
 openai-whisper
 torch

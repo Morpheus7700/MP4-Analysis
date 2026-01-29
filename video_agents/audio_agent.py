@@ -21,6 +21,15 @@ class AudioAgent:
             return {"status": "no_audio", "transcript": "No audio file available for analysis.", "insights": ["Audio analysis skipped: No audio track found."]}
 
         try:
+            # Check if we have a valid path
+            if not audio_path or not os.path.exists(audio_path):
+                 return {
+                    "agent": "AudioAgent",
+                    "status": "no_audio",
+                    "transcript": "Audio extraction failed or was skipped.",
+                    "insights": ["Ensure FFmpeg is installed or video has an audio track."]
+                }
+
             # Whisper can hallucinate on silence. We use specific thresholds.
             # no_speech_threshold helps filter out noise.
             result = self.model.transcribe(

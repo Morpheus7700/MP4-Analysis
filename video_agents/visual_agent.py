@@ -13,29 +13,37 @@ class VisualAgent:
         self.yolo_model = YOLO('yolov8n.pt')
         self.yolo_model.to(self.device)
         
+        # Determine the best device mapping strategy
+        # device_map="auto" is more robust for models that might use meta tensors
+        device_map = "auto" if self.device == "cuda" else None
+        
         # 2. Image Captioning (BLIP) - Explains what is happening
         self.captioner = pipeline(
             "image-to-text", 
             model="Salesforce/blip-image-captioning-base",
-            device=0 if self.device == "cuda" else -1,
-            model_kwargs={"low_cpu_mem_usage": False}
+            device_map=device_map
         )
         
         # 3. Emotion Recognition (ViT) - Understands faces
         self.emotion_classifier = pipeline(
             "image-classification", 
             model="dima806/facial_emotions_image_detection",
-            device=0 if self.device == "cuda" else -1,
-            model_kwargs={"low_cpu_mem_usage": False}
+            device_map=device_map
         )
         
-        # 4. Hand Gesture Recognition (MediaPipe) - Legacy solutions might be missing on Python 3.13
+        # 4. Hand Gesture Recognition (MediaPipe) - Handled with safety for Python 3.13+
         try:
-            self.mp_hands = mp.solutions.hands
-            self.hands = self.mp_hands.Hands(static_image_mode=True, max_num_hands=2, min_detection_confidence=0.5)
-            self.hands_enabled = True
+            import mediapipe as mp
+            # Use a more resilient way to check for solutions
+            if hasattr(mp, 'solutions') and hasattr(mp.solutions, 'hands'):
+                self.mp_hands = mp.solutions.hands
+                self.hands = self.mp_hands.Hands(static_image_mode=True, max_num_hands=2, min_detection_confidence=0.5)
+                self.hands_enabled = True
+            else:
+                print("Warning: MediaPipe 'solutions.hands' not found. Gesture recognition disabled.")
+                self.hands_enabled = False
         except (AttributeError, Exception) as e:
-            print(f"Warning: MediaPipe Hand solutions not available: {e}")
+            print(f"Warning: MediaPipe Hand solutions initialization failed: {e}")
             self.hands_enabled = False
 
     def analyze(self, frames):

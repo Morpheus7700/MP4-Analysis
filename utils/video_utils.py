@@ -9,31 +9,37 @@ class VideoUtils:
     def extract_audio(video_path, audio_path):
         """Extracts audio from video and saves it to the specified path."""
         try:
+            import imageio_ffmpeg as ffmpeg_lib
+            ffmpeg_exe = ffmpeg_lib.get_ffmpeg_exe()
+            
             if not os.path.exists(video_path):
                 print(f"Error: Video file not found at {video_path}")
                 return False
 
-            video = VideoFileClip(video_path)
+            # Use direct ffmpeg command for maximum reliability and control over codec
+            import subprocess
+            cmd = [
+                ffmpeg_exe, "-y", "-i", video_path,
+                "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                audio_path
+            ]
             
-            if video.audio is None:
-                print("No audio track found in the video.")
-                video.close()
-                return False
-                
-            # Use a slightly more robust ffmpeg parameter if possible
-            # But moviepy's write_audiofile is generally okay if audio exists
-            video.audio.write_audiofile(audio_path, logger=None, fps=16000) # Standard for Whisper
-            video.close() # Close video file handle
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
             
-            # Verify file creation
-            import time
-            for _ in range(10): # Increased wait time
-                if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
-                    return True
-                time.sleep(0.5)
+            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                return True
             return False
         except Exception as e:
-            print(f"Error extracting audio: {e}")
+            print(f"Error extracting audio with imageio-ffmpeg: {e}")
+            # Fallback to moviepy if imageio-ffmpeg fails
+            try:
+                video = VideoFileClip(video_path)
+                if video.audio:
+                    video.audio.write_audiofile(audio_path, logger=None, fps=16000)
+                    video.close()
+                    return True
+                video.close()
+            except: pass
             return False
 
     @staticmethod
@@ -110,17 +116,31 @@ class VideoUtils:
             fps = vidcap.get(cv2.CAP_PROP_FPS)
             frame_count = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
             duration = frame_count / fps if fps > 0 else 0
-            
-            # Check for audio stream presence using moviepy (lightweight check)
+            vidcap.release()
+
+            # Fast check for audio using ffprobe via imageio-ffmpeg
             has_audio = False
             try:
-                clip = VideoFileClip(video_path)
-                has_audio = clip.audio is not None
-                clip.close()
-            except:
-                pass
+                import imageio_ffmpeg as ffmpeg_lib
+                import subprocess
+                import json
                 
-            vidcap.release()
+                ffprobe_exe = ffmpeg_lib.get_ffmpeg_exe().replace("ffmpeg", "ffprobe")
+                cmd = [
+                    ffprobe_exe, "-v", "error", "-show_streams", 
+                    "-select_streams", "a", "-print_format", "json", video_path
+                ]
+                output = subprocess.check_output(cmd).decode('utf-8')
+                info = json.loads(output)
+                has_audio = len(info.get("streams", [])) > 0
+            except:
+                # Fallback to moviepy lightweight check
+                try:
+                    clip = VideoFileClip(video_path)
+                    has_audio = clip.audio is not None
+                    clip.close()
+                except: pass
+                
             return {
                 "fps": fps,
                 "frame_count": frame_count,

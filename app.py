@@ -1,6 +1,16 @@
 import streamlit as st
-from video_agents.manager import ManagerAgent
 import os
+import numpy as np
+
+# Global Compatibility Fix for legacy libraries (Keras/MediaPipe) on Python 3.13+
+if not hasattr(np, "object"):
+    np.object = object
+if not hasattr(np, "bool"):
+    np.bool = bool
+if not hasattr(np, "int"):
+    np.int = int
+
+from video_agents.manager import ManagerAgent
 
 # Page Config for Premium Look
 st.set_page_config(

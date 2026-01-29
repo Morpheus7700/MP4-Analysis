@@ -2,6 +2,7 @@ import torch
 from transformers import pipeline
 import os
 import streamlit as st
+import gc
 
 class LLMEngine:
     def __init__(self, model_id="google/gemma-2-2b-it"):
@@ -12,43 +13,65 @@ class LLMEngine:
 
     def _load_model(self):
         if self.pipeline is None:
+            # Clear memory before loading
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                
             torch_dtype = torch.float16 if self.device == "cuda" else torch.float32
             try:
                 print(f"LLM Engine: Loading {self.model_id}...")
+                # Avoid device_map="auto" on low-VRAM to prevent disk offloading (which hangs)
+                # Instead, use simple device placement if CUDA is available
                 self.pipeline = pipeline(
                     "text-generation",
                     model=self.model_id,
-                    device_map="auto",
+                    device=0 if self.device == "cuda" else -1,
                     torch_dtype=torch_dtype,
                     trust_remote_code=True
                 )
             except Exception as e:
                 print(f"Primary model failed ({e}). Loading reliable fallback (Phi-1.5)...")
-                self.pipeline = pipeline("text-generation", model="microsoft/phi-1_5", device_map="auto", trust_remote_code=True)
+                # Force CPU for fallback if needed to ensure it actually runs
+                self.pipeline = pipeline(
+                    "text-generation", 
+                    model="microsoft/phi-1_5", 
+                    device=-1 if self.device == "cpu" else 0,
+                    trust_remote_code=True
+                )
 
     def generate_report(self, audio_data, visual_data, meta):
         st.write("📖 LLM Engine: Reading analysis data...")
         self._load_model()
         prompt = self._construct_prompt(audio_data, visual_data, meta)
         
-        st.write("✍️ LLM Engine: Synthesizing Intelligence Briefing...")
+        st.write("✍️ LLM Engine: Synthesizing Intelligence Briefing (This may take 30-90s on CPU)...")
         # Significantly richer parameters for detailed output
-        outputs = self.pipeline(
-            prompt,
-            max_new_tokens=300, # Reduced for speed on CPU/low-VRAM
-            do_sample=True, 
-            temperature=0.7,
-            top_p=0.9,
-            repetition_penalty=1.1,
-            pad_token_id=self.pipeline.tokenizer.eos_token_id
-        )
-        
-        full_text = outputs[0]["generated_text"]
-        # Extract only the content after "OFFICIAL INTELLIGENCE REPORT"
-        marker = "OFFICIAL INTELLIGENCE REPORT"
-        if marker in full_text:
-            return full_text.split(marker)[-1].strip()
-        return full_text[len(prompt):].strip()
+        try:
+            outputs = self.pipeline(
+                prompt,
+                max_new_tokens=200, # Further reduced for speed
+                do_sample=True, 
+                temperature=0.7,
+                top_k=50,
+                top_p=0.9,
+                repetition_penalty=1.1,
+                pad_token_id=self.pipeline.tokenizer.eos_token_id
+            )
+            
+            full_text = outputs[0]["generated_text"]
+            # Clear memory after inference
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                
+            # Extract only the content after the report header
+            marker = "OFFICIAL INTELLIGENCE REPORT:"
+            if marker in full_text:
+                return full_text.split(marker)[-1].strip()
+            return full_text[len(prompt):].strip()
+        except Exception as e:
+            return f"Synthesis Engine encountered a delay: {str(e)}. Please try again with Turbo Mode or smaller video."
 
     def _construct_prompt(self, audio, visual, meta):
         # Explicit grounding data

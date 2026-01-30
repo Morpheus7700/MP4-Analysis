@@ -28,7 +28,7 @@ if os.path.exists(css_path):
 
 # Sidebar System Health & Settings
 st.sidebar.title("🔋 System Control")
-turbo_mode = st.sidebar.toggle("🚀 TURBO MODE (Fastest)", value=False, help="Uses lighter models (Whisper Tiny + Phi-1.5) for ~3x faster analysis.")
+turbo_mode = st.sidebar.toggle("🚀 TURBO MODE (Fastest)", value=True, help="Uses lighter models (Whisper Tiny + Phi-1.5) for ~3x faster analysis.")
 
 @st.cache_resource
 def get_manager(is_turbo):

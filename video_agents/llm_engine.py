@@ -42,6 +42,20 @@ class LLMEngine:
 
     def generate_report(self, audio_data, visual_data, meta):
         st.write("📖 LLM Engine: Reading analysis data...")
+        
+        # --- PRE-CHECK FOR SPARSE DATA ---
+        # If there's barely any data, don't ask the LLM to hallucinate.
+        visual_narrative = visual_data['stats'].get('visual_narrative', '')
+        objs = visual_data['stats'].get('unique_objects', [])
+        transcript = audio_data.get('transcript', '')
+        
+        # Check if we have meaningful data
+        has_visuals = len(objs) > 0 or (visual_narrative and "unavailable" not in visual_narrative)
+        has_audio = transcript and "No" not in transcript and len(transcript) > 5
+        
+        if not has_visuals and not has_audio:
+            return "The analysis could not extract sufficient visual or audio data to generate a detailed narrative. Please ensure the video has clear content."
+
         self._load_model()
         prompt = self._construct_prompt(audio_data, visual_data, meta)
         
@@ -50,21 +64,33 @@ class LLMEngine:
             if self.pipeline.tokenizer.pad_token_id is None:
                 self.pipeline.tokenizer.pad_token_id = self.pipeline.tokenizer.eos_token_id
             
+            # Generate response
             outputs = self.pipeline(
                 prompt,
-                max_new_tokens=200, 
+                max_new_tokens=150, 
                 do_sample=False, # Use greedy search for higher factual accuracy
                 repetition_penalty=1.2,
                 pad_token_id=self.pipeline.tokenizer.pad_token_id,
-                clean_up_tokenization_spaces=True
+                clean_up_tokenization_spaces=True,
+                return_full_text=False 
             )
             
-            full_text = outputs[0]["generated_text"]
-            report_body = full_text[len(prompt):].strip()
+            # Extract text carefully
+            if isinstance(outputs[0], dict) and "generated_text" in outputs[0]:
+                report_body = outputs[0]["generated_text"].strip()
+            else:
+                report_body = str(outputs[0]).strip()
+
+            # Fallback for manual slicing if return_full_text didn't work as expected
+            if prompt in report_body:
+                report_body = report_body.replace(prompt, "").strip()
 
             # --- ANTI-HALLUCINATION FILTER ---
-            # Truncate if the model starts generating textbook patterns
-            hallucination_triggers = ["Question:", "Question 1", "Example:", "Solution:", "Calculate", "Exercise:"]
+            # Truncate if the model starts generating textbook patterns or essays
+            hallucination_triggers = [
+                "Question:", "Question 1", "Example:", "Solution:", "Calculate", "Exercise:", 
+                "Title:", "Introduction:", "Chapter", "Section 1", "Step 1:", "References:", "##"
+            ]
             for trigger in hallucination_triggers:
                 if trigger in report_body:
                     report_body = report_body.split(trigger)[0].strip()
@@ -85,21 +111,12 @@ class LLMEngine:
         transcript = audio.get('transcript', '').strip()
         speech = f"\"{transcript}\"" if transcript and "No" not in transcript else "[No speech]"
 
-        return f"""### INSTRUCTIONS:
-Summarize the VIDEO DATA below into a short factual paragraph. 
-- DO NOT invent stories or characters.
-- DO NOT generate questions or math problems.
-- Stick to the facts provided.
+        return f"""Task: Summarize the following video analysis data into one concise, factual paragraph. Do not add outside information.
 
-### EXAMPLE:
-DATA: Duration 10s, Objects: person, chair. Visual: A person sits down. Audio: \"Hello\".
-REPORT: The video shows a 10-second clip where a person is seen sitting on a chair and says \"Hello\".
-
-### CURRENT VIDEO DATA:
+Data:
 - Duration: {meta.get('duration', 0):.1f}s
-- Objects: {objs}
+- Objects Detected: {objs if objs else "None"}
 - Visual Events: {visual_narrative}
-- Audio: {speech}
+- Audio/Speech: {speech}
 
-### FACTUAL REPORT:
-"""
+Summary: The video is {meta.get('duration', 0):.1f} seconds long."""

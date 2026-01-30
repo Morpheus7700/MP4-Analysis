@@ -28,7 +28,7 @@ if os.path.exists(css_path):
 
 # Sidebar System Health & Settings
 st.sidebar.title("🔋 System Control")
-turbo_mode = st.sidebar.toggle("🚀 TURBO MODE (Fastest)", value=True, help="Uses lighter models (Whisper Tiny + Phi-1.5) for ~3x faster analysis.")
+turbo_mode = st.sidebar.toggle("🚀 TURBO MODE (Fastest)", value=True, help="Uses lighter models (Whisper Tiny + Qwen 2.5 1.5B) for ~3x faster analysis.")
 
 @st.cache_resource
 def get_manager(is_turbo):
@@ -39,7 +39,7 @@ def get_manager(is_turbo):
     
     config = {
         "audio_model": "tiny" if is_turbo else "base",
-        "llm_model": "microsoft/phi-1_5" if is_turbo else "google/gemma-2-2b-it"
+        "llm_model": "Qwen/Qwen2.5-1.5B-Instruct" if is_turbo else "google/gemma-2-2b-it"
     }
     
     try:

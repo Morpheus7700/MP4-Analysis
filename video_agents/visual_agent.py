@@ -72,7 +72,8 @@ class VisualAgent:
         # 1. Batch Object Detection (YOLO) - Very fast
         for batch in batches:
             batch_images = [img for _, img in batch]
-            results = self.yolo_model(batch_images, verbose=False)
+            # Lower confidence to catch background people, standard 640 resolution
+            results = self.yolo_model(batch_images, verbose=False, conf=0.15, imgsz=640)
             
             for i, result in enumerate(results):
                 timestamp, _ = batch[i]

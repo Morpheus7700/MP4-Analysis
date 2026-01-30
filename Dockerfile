@@ -34,7 +34,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 RUN pip install huggingface_hub && \
     python -c "from ultralytics import YOLO; YOLO('yolov8s.pt')" && \
     python -c "import whisper; whisper.load_model('tiny')" && \
-    python -c "from huggingface_hub import snapshot_download; snapshot_download('Salesforce/blip-image-captioning-base'); snapshot_download('microsoft/phi-1_5'); snapshot_download('dima806/facial_emotions_image_detection')"
+    python -c "from huggingface_hub import snapshot_download; snapshot_download('Salesforce/blip-image-captioning-base'); snapshot_download('Qwen/Qwen2.5-1.5B-Instruct'); snapshot_download('dima806/facial_emotions_image_detection')"
 
 # 3. Copy the application code
 COPY . .

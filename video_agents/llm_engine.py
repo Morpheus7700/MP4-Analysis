@@ -32,10 +32,10 @@ class LLMEngine:
                     trust_remote_code=True
                 )
             except Exception as e:
-                print(f"Primary model failed ({e}). Loading fallback (Phi-1.5)...")
+                print(f"Primary model failed ({e}). Loading fallback (Qwen 2.5 1.5B)...")
                 self.pipeline = pipeline(
                     "text-generation", 
-                    model="microsoft/phi-1_5", 
+                    model="Qwen/Qwen2.5-1.5B-Instruct", 
                     device_map=device_map,
                     trust_remote_code=True
                 )

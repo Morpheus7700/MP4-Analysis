@@ -10,7 +10,7 @@ class VisualAgent:
         import torch
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         # 1. Object Detection (YOLOv8)
-        self.yolo_model = YOLO('yolov8n.pt')
+        self.yolo_model = YOLO('yolov8s.pt')
         self.yolo_model.to(self.device)
         
         # Determine the best device mapping strategy
@@ -91,7 +91,7 @@ class VisualAgent:
         try:
             # HuggingFace pipeline supports batching if passed as a list
             # We use a smaller batch for BLIP to avoid OOM
-            captions = self.captioner(caption_frames)
+            captions = self.captioner(caption_frames, generate_kwargs={"max_new_tokens": 50})
             for i, caption_result in enumerate(captions):
                 timestamp = batches[i][0][0]
                 text = caption_result[0]['generated_text']

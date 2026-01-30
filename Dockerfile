@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # 2. Pre-download AI Models into the image
 # This prevents the container from timing out on the first request
 RUN pip install huggingface_hub && \
-    python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" && \
+    python -c "from ultralytics import YOLO; YOLO('yolov8s.pt')" && \
     python -c "import whisper; whisper.load_model('tiny')" && \
     python -c "from huggingface_hub import snapshot_download; snapshot_download('Salesforce/blip-image-captioning-base'); snapshot_download('microsoft/phi-1_5'); snapshot_download('dima806/facial_emotions_image_detection')"
 

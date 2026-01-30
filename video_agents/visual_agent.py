@@ -25,11 +25,15 @@ class VisualAgent:
         )
         
         # 3. Emotion Recognition (ViT) - Understands faces
-        self.emotion_classifier = pipeline(
-            "image-classification", 
-            model="dima806/facial_emotions_image_detection",
-            device_map=device_map
-        )
+        try:
+            self.emotion_classifier = pipeline(
+                "image-classification", 
+                model="dima806/facial_emotions_image_detection",
+                device_map=device_map
+            )
+        except Exception as e:
+            print(f"Warning: Emotion Recognition model failed to load: {e}")
+            self.emotion_classifier = None
         
         # 4. Hand Gesture Recognition (MediaPipe) - Handled with safety for Python 3.13+
         try:
@@ -104,7 +108,7 @@ class VisualAgent:
             img_np = np.array(pil_image)
             
             # --- Emotion Recognition (Only if 'person' detected in this frame) ---
-            if 'person' in timeline[i]["objects"]:
+            if 'person' in timeline[i]["objects"] and self.emotion_classifier is not None:
                 gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
                 faces = face_cascade.detectMultiScale(gray, 1.1, 4)
                 for (x, y, w, h) in faces:

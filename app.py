@@ -1,6 +1,10 @@
 import streamlit as st
 import os
 import numpy as np
+from dotenv import load_dotenv
+
+# Load environment variables from .env if it exists
+load_dotenv()
 
 # Global Compatibility Fix for legacy libraries (Keras/MediaPipe) on Python 3.13+
 if not hasattr(np, "object"):
@@ -28,10 +32,13 @@ if os.path.exists(css_path):
 
 # Sidebar System Health & Settings
 st.sidebar.title("🔋 System Control")
+# Use environment variable as default if available
+default_api_key = os.getenv("GEMINI_API_KEY", "")
+gemini_api_key = st.sidebar.text_input("💎 Gemini API Key", value=default_api_key, type="password", help="Optional: If provided, the system uses Gemini 2.0 Flash for superior video understanding.")
 turbo_mode = st.sidebar.toggle("🚀 TURBO MODE (Fastest)", value=True, help="Uses lighter models (Whisper Tiny + Qwen 2.5 1.5B) for ~3x faster analysis.")
 
 @st.cache_resource
-def get_manager(is_turbo):
+def get_manager(is_turbo, api_key):
     import video_agents.manager
     import importlib
     importlib.reload(video_agents.manager)
@@ -39,7 +46,8 @@ def get_manager(is_turbo):
     
     config = {
         "audio_model": "tiny" if is_turbo else "base",
-        "llm_model": "Qwen/Qwen2.5-1.5B-Instruct" if is_turbo else "google/gemma-2-2b-it"
+        "llm_model": "Qwen/Qwen2.5-1.5B-Instruct" if is_turbo else "google/gemma-2-2b-it",
+        "gemini_api_key": api_key
     }
     
     try:
@@ -50,7 +58,7 @@ def get_manager(is_turbo):
         st.warning("Warning: Using legacy ManagerAgent signature. Turbo Mode may be disabled.")
         return ManagerAgent()
 
-manager = get_manager(turbo_mode)
+manager = get_manager(turbo_mode, gemini_api_key)
 
 st.sidebar.success(f"Visual Core: Active (YOLOv8/BLIP)")
 st.sidebar.success(f"Audio Core: Active (Whisper {'Tiny' if turbo_mode else 'Base'})")

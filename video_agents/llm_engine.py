@@ -3,12 +3,14 @@ from transformers import pipeline
 import os
 import streamlit as st
 import gc
+import google.generativeai as genai
 
 class LLMEngine:
     def __init__(self, model_id="google/gemma-2-2b-it"):
         self.model_id = model_id
         self.pipeline = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        # We'll check for the API key dynamically during report generation
         print(f"LLM Engine: Initializing with target model '{self.model_id}' on {self.device}...")
 
     def _load_model(self):
@@ -40,16 +42,72 @@ class LLMEngine:
                     trust_remote_code=True
                 )
 
-    def generate_report(self, audio_data, visual_data, meta):
+    def generate_report(self, audio_data, visual_data, meta, video_path=None):
+        """
+        Generates a report using Gemini if an API key is provided, 
+        otherwise falls back to the local LLM.
+        """
+        # 1. Check for Gemini API Key (Priority 1: Manager Config/App Input, Priority 2: ENV)
+        # In this architecture, we check if manager passed it through st.session_state or direct config
+        # But since ReportAgent/LLMEngine are recreated/called, we check st.session_state or os.environ
+        api_key = os.environ.get("GEMINI_API_KEY")
+        
+        # If we have a video and an API key, use the superior Gemini 2.0 Flash
+        if api_key and video_path and os.path.exists(video_path):
+            return self._generate_with_gemini(video_path, audio_data, visual_data, api_key)
+
+        # 2. Fallback to Local LLM
+        return self._generate_local_report(audio_data, visual_data, meta)
+
+    def _generate_with_gemini(self, video_path, audio_data, visual_data, api_key):
+        st.write("💎 LLM Engine: Uploading to Gemini 2.0 Flash for Deep Understanding...")
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            
+            # Use the data we already have to guide Gemini
+            local_context = f"""
+            Local Analysis Hints:
+            - Objects detected locally: {', '.join(visual_data['stats'].get('unique_objects', []))}
+            - Local Transcription: {audio_data.get('transcript', 'None')}
+            """
+            
+            prompt = f"""Analyze this video and provide a professional Intelligence Briefing.
+            {local_context}
+            
+            Instructions:
+            - Describe key scenes, people, and actions.
+            - Provide a narrative summary of the content.
+            - Be precise and factual. Avoid generic descriptions.
+            - If there are people, describe their interactions and setting.
+            """
+            
+            video_file = genai.upload_file(video_path)
+            
+            # Poll for file to be ready (simplistic for this version)
+            import time
+            while video_file.state.name == "PROCESSING":
+                time.sleep(2)
+                video_file = genai.get_file(video_file.name)
+            
+            response = model.generate_content([prompt, video_file])
+            
+            # Clean up
+            genai.delete_file(video_file.name)
+            
+            return response.text
+        except Exception as e:
+            st.error(f"Gemini Analysis Failed: {e}. Falling back to local model...")
+            return self._generate_local_report(audio_data, visual_data, {"duration": 0}) # Dummy meta for fallback
+
+    def _generate_local_report(self, audio_data, visual_data, meta):
         st.write("📖 LLM Engine: Reading analysis data...")
         
         # --- PRE-CHECK FOR SPARSE DATA ---
-        # If there's barely any data, don't ask the LLM to hallucinate.
         visual_narrative = visual_data['stats'].get('visual_narrative', '')
         objs = visual_data['stats'].get('unique_objects', [])
         transcript = audio_data.get('transcript', '')
         
-        # Check if we have meaningful data
         has_visuals = len(objs) > 0 or (visual_narrative and "unavailable" not in visual_narrative)
         has_audio = transcript and "No" not in transcript and len(transcript) > 5
         
@@ -64,29 +122,24 @@ class LLMEngine:
             if self.pipeline.tokenizer.pad_token_id is None:
                 self.pipeline.tokenizer.pad_token_id = self.pipeline.tokenizer.eos_token_id
             
-            # Generate response
             outputs = self.pipeline(
                 prompt,
                 max_new_tokens=150, 
-                do_sample=False, # Use greedy search for higher factual accuracy
+                do_sample=False, 
                 repetition_penalty=1.2,
                 pad_token_id=self.pipeline.tokenizer.pad_token_id,
                 clean_up_tokenization_spaces=True,
                 return_full_text=False 
             )
             
-            # Extract text carefully
             if isinstance(outputs[0], dict) and "generated_text" in outputs[0]:
                 report_body = outputs[0]["generated_text"].strip()
             else:
                 report_body = str(outputs[0]).strip()
 
-            # Fallback for manual slicing if return_full_text didn't work as expected
             if prompt in report_body:
                 report_body = report_body.replace(prompt, "").strip()
 
-            # --- ANTI-HALLUCINATION FILTER ---
-            # Truncate if the model starts generating textbook patterns or essays
             hallucination_triggers = [
                 "Question:", "Question 1", "Example:", "Solution:", "Calculate", "Exercise:", 
                 "Title:", "Introduction:", "Chapter", "Section 1", "Step 1:", "References:", "##"

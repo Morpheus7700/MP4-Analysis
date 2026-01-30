@@ -13,6 +13,10 @@ class ManagerAgent:
         """
         self.config = config if config is not None else {"audio_model": "base", "llm_model": "google/gemma-2-2b-it"}
         
+        # Store Gemini API Key in environment if provided
+        if self.config.get("gemini_api_key"):
+            os.environ["GEMINI_API_KEY"] = self.config.get("gemini_api_key")
+        
         # Initialize sub-agents with specific models if provided in config
         audio_model = self.config.get("audio_model", "base")
         self.audio_agent = AudioAgent(model_size=audio_model)
@@ -95,7 +99,7 @@ class ManagerAgent:
             
             # 4. Synthesis
             st.info("Manager Agent: Requesting Final Report Synthesis...")
-            final_report = self.report_agent.synthesize(audio_report, visual_report, meta)
+            final_report = self.report_agent.synthesize(audio_report, visual_report, meta, video_path=video_path)
             
             # Cleanup moved after synthesis to ensure metadata is available
             try:

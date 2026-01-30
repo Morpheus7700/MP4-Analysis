@@ -5,11 +5,11 @@ class ReportAgent:
         # The Report Agent now delegates the 'thinking' to the LLM Engine
         self.llm = LLMEngine(model_id=model_id) if model_id else LLMEngine()
 
-    def synthesize(self, audio_report, visual_report, video_meta):
+    def synthesize(self, audio_report, visual_report, video_meta, video_path=None):
         """
         Uses a Deep Learning LLM to synthesize multi-modal data.
         """
-        raw_report_text = self.llm.generate_report(audio_report, visual_report, video_meta)
+        raw_report_text = self.llm.generate_report(audio_report, visual_report, video_meta, video_path=video_path)
         
         # Parse the LLM output into the structure expected by the UI
         # We can perform more complex parsing here if the LLM is instructed to return JSON

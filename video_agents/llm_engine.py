@@ -9,7 +9,7 @@ class LLMEngine:
         self.model_id = model_id
         self.pipeline = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"LLM Engine: Initializing on {self.device}...")
+        print(f"LLM Engine: Initializing with target model '{self.model_id}' on {self.device}...")
 
     def _load_model(self):
         if self.pipeline is None:

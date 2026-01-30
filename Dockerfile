@@ -36,6 +36,9 @@ RUN pip install huggingface_hub && \
     python -c "import whisper; whisper.load_model('tiny')" && \
     python -c "from huggingface_hub import snapshot_download; snapshot_download('Salesforce/blip-image-captioning-base'); snapshot_download('Qwen/Qwen2.5-1.5B-Instruct'); snapshot_download('dima806/facial_emotions_image_detection')"
 
+# Force cache invalidation for code changes
+ENV FORCE_REBUILD=v2
+
 # 3. Copy the application code
 COPY . .
 

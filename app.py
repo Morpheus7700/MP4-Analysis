@@ -54,7 +54,7 @@ manager = get_manager(turbo_mode)
 
 st.sidebar.success(f"Visual Core: Active (YOLOv8/BLIP)")
 st.sidebar.success(f"Audio Core: Active (Whisper {'Tiny' if turbo_mode else 'Base'})")
-st.sidebar.info(f"Synthesis Engine: {'Phi-1.5' if turbo_mode else 'Gemma-2'}")
+st.sidebar.info(f"Synthesis Engine: {'Qwen 2.5' if turbo_mode else 'Gemma-2'}")
 st.sidebar.divider()
 st.sidebar.markdown("### Resource Usage")
 st.sidebar.progress(20 if turbo_mode else 45, text="VRAM Allocation")
